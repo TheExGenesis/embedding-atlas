@@ -8,7 +8,7 @@ export {
   type EmbeddingViewProps,
 } from "./embedding_view/api.js";
 
-export { defaultCategoryColors } from "./colors.js";
+export { defaultCategoryColors, spatialCategoryColors } from "./colors.js";
 
 export type { EmbeddingViewConfig } from "./embedding_view/embedding_view_config.js";
 export type { EmbeddingViewTheme } from "./embedding_view/theme.js";
