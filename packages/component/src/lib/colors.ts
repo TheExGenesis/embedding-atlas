@@ -47,9 +47,16 @@ export function defaultCategoryColors(count: number): string[] {
   } else if (count <= category20.length) {
     return category20.slice(0, count);
   } else {
-    let colors: string[] = [];
-    for (let i = 0; i < count; i++) {
-      colors[i] = category20[i % category20.length];
+    // For more than 20 categories, generate colors using HSL with evenly distributed hues
+    let colors: string[] = [...category20];
+    for (let i = category20.length; i < count; i++) {
+      // Generate hue evenly distributed around the color wheel
+      const hue = (i * 360 / count) % 360;
+      // Alternate between high and medium saturation for variety
+      const saturation = i % 2 === 0 ? 70 : 85;
+      // Alternate lightness to create visual distinction
+      const lightness = 45 + (i % 3) * 10;
+      colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
     }
     return colors;
   }

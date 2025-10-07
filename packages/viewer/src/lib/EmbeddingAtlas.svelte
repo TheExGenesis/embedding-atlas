@@ -298,10 +298,10 @@
     }
     let result;
     if (candidate.jsType == "string") {
-      result = await tableInfo.makeCategoryColumn(candidate.name, 10);
+      result = await tableInfo.makeCategoryColumn(candidate.name, candidate.distinctCount);
     } else if (candidate.jsType == "number") {
       if (candidate.distinctCount <= 10) {
-        result = await tableInfo.makeCategoryColumn(candidate.name, 10);
+        result = await tableInfo.makeCategoryColumn(candidate.name, candidate.distinctCount);
       } else {
         result = await tableInfo.makeBinnedNumericColumn(candidate.name);
       }
