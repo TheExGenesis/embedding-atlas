@@ -1,6 +1,7 @@
 // Copyright (c) 2025 Apple Inc. Licensed under MIT License.
 
 import { hcl, rgb } from "d3-color";
+import { interpolateTurbo } from "d3-scale-chromatic";
 
 const category10 = [
   "#1f77b4",
@@ -81,7 +82,7 @@ export function spatialCategoryColors(
     radiusWeightPower?: number;
   } = {},
 ): string[] {
-  const { hueShift = 0, minLightness = 20, radiusWeightPower = 1.0 } = options;
+  const { hueShift = 0, minLightness = 10, radiusWeightPower = 1.0 } = options;
 
   if (categoryCount === 0 || categoryPositions.length === 0) {
     return [];
@@ -120,27 +121,36 @@ export function spatialCategoryColors(
   });
   const totalWeight = cumSum;
 
-  // Assign hue based on angular position with weighted distribution
+  // Assign colors using circular colormap based on angular position
   const colors: string[] = [];
+  const maxRadius = Math.max(...polarCoords.map((p) => p.radius), 0.0001); // Avoid division by zero
+
   for (const coord of polarCoords) {
     // Find position in sorted array
     const sortedIndex = sorted.findIndex((s) => s.theta === coord.theta && s.radius === coord.radius);
     const normalizedWeight = sortedIndex >= 0 ? cumulativeWeights[sortedIndex] / totalWeight : 0;
-    let hue = normalizedWeight * 360 + hueShift;
-    hue = hue % 360;
-    if (hue < 0) hue += 360;
 
-    // Chroma (saturation) increases with distance from center
+    // Use turbo colormap for base color (circular around the color wheel)
+    let t = normalizedWeight + hueShift / 360;
+    t = t % 1.0;
+    if (t < 0) t += 1.0;
+
+    // Get base color from turbo colormap
+    const baseColor = interpolateTurbo(t);
+    const baseHcl = hcl(baseColor);
+
     // Normalize radius to 0-1 range
-    const maxRadius = Math.max(...polarCoords.map((p) => p.radius));
-    const normalizedRadius = maxRadius > 0 ? coord.radius / maxRadius : 0;
-    const chroma = normalizedRadius * 80 + 20; // Range: 20-100
+    const normalizedRadius = coord.radius / maxRadius;
 
-    // Lightness decreases with distance from center (outer clusters are darker)
-    const lightness = (1 - normalizedRadius) * (80 - minLightness) + minLightness;
+    // Vary chroma (saturation) based on distance - outer clusters more saturated
+    const chroma = baseHcl.c * (0.5 + 0.5 * normalizedRadius); // Range: 50-100% of base chroma
+
+    // Vary lightness based on distance - outer clusters slightly darker
+    const lightness = baseHcl.l * (1.0 - 0.3 * normalizedRadius); // Range: 70-100% of base lightness
+    const clampedLightness = Math.max(lightness, minLightness);
 
     // Create HCL color and convert to hex
-    const color = hcl(hue, chroma, lightness);
+    const color = hcl(baseHcl.h, chroma, clampedLightness);
     colors.push(color.formatHex());
   }
 
