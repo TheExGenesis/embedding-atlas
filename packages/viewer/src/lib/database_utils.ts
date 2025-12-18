@@ -171,7 +171,11 @@ export class TableInfo {
     return plots;
   }
 
-  async makeCategoryColumn(column: string, maxCategories: number): Promise<EmbeddingLegend> {
+  async makeCategoryColumn(
+    column: string,
+    maxCategories: number,
+    projectionColumns?: { x: string; y: string },
+  ): Promise<EmbeddingLegend> {
     let indexColumnName = `_ev_${column}_id`;
     let values: { value: string; count: number }[] = await this.query(
       SQL.Query.from(this.table)
@@ -207,7 +211,30 @@ export class TableInfo {
     let otherCount = countMap.get(otherIndex) ?? 0;
     let nullCount = countMap.get(nullIndex) ?? 0;
 
-    let colors = defaultCategoryColors(values.length);
+    // Calculate colors based on spatial positions if projection columns are provided
+    let colors: string[];
+    if (projectionColumns) {
+      // Calculate centroids for each category
+      let centroids = await this.query<{ index: number; x: number; y: number }>(SQL.sql`
+        SELECT ${SQL.column(indexColumnName)} AS index,
+               AVG(${SQL.column(projectionColumns.x)}) AS x,
+               AVG(${SQL.column(projectionColumns.y)}) AS y
+        FROM ${this.table}
+        WHERE ${SQL.column(indexColumnName)} < ${SQL.literal(otherIndex)}
+        GROUP BY ${SQL.column(indexColumnName)}
+        ORDER BY ${SQL.column(indexColumnName)}
+      `);
+
+      // Import spatialCategoryColors
+      const { spatialCategoryColors } = await import("@embedding-atlas/component");
+
+      // Create position array matching the category order
+      const positions: Array<[number, number]> = centroids.map((c) => [c.x, c.y]);
+      colors = spatialCategoryColors(values.length, positions);
+    } else {
+      // Fallback to default color scheme
+      colors = defaultCategoryColors(values.length);
+    }
 
     let legend: EmbeddingLegend["legend"] = values.map(({ value }, i) => ({
       label: value,
